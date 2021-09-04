@@ -1,0 +1,37 @@
+name: build
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0'
+          include-prerelease: true
+
+      - name: Build server
+        run: dotnet publish src/Plate.Server/ -o publishServer -r linux-x64 -c Release -p:PublishSingleFile=true --self-contained true
+
+      - name: Build client
+        run: dotnet publish src/Plate.Client/ -o publishClient -r linux-x64 -c Release -p:PublishSingleFile=true --self-contained true
+
+      - name: Create artifacts dir
+        run: mkdir plate-artifacts
+
+      - name: Rename server
+        run: mv ./publishServer/Plate.Server ./plate-artifacts/plate-server-linux_x64
+
+      - name: Rename client
+        run: mv ./publishClient/Plate.Client ./plate-artifacts/plate-linux_x64
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: plate-artifacts
+          path: plate-artifacts
+

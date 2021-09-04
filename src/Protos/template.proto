@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+option csharp_namespace = "Plate.Protos";
+
+package template;
+
+service Template {
+  rpc Sync (SyncRequest) returns (SyncReply);
+}
+
+message SyncRequest {
+}
+
+message SyncReply {
+}

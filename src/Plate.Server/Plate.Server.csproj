@@ -6,11 +6,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Protobuf Include="Protos\greet.proto" GrpcServices="Server" />
+    <Protobuf Include="..\Protos\**\*.proto" GrpcServices="Server" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Grpc.AspNetCore" Version="2.32.0" />
+    <PackageReference Include="Scriban" Version="4.0.1" />
+    <PackageReference Include="VaultSharp" Version="1.7.0" />
+    <PackageReference Include="YamlDotNet" Version="11.2.1" />
   </ItemGroup>
 
   <ItemGroup>

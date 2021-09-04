@@ -1,22 +1,16 @@
-using Plate.Server.Services;
+using Microsoft.AspNetCore;
 
-var builder = WebApplication.CreateBuilder(args);
+namespace Plate.Server;
 
-// Additional configuration is required to successfully run gRPC on macOS.
-// For instructions on how to configure Kestrel and gRPC clients on macOS, visit https://go.microsoft.com/fwlink/?linkid=2099682
-
-// Add services to the container.
-builder.Services.AddGrpc();
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+public class Program
 {
-    app.UseDeveloperExceptionPage();
+    public static void Main(string[] args)
+    {
+        BuildWebHost(args).Run();
+    }
+
+    public static IWebHost BuildWebHost(string[] args) =>
+        WebHost.CreateDefaultBuilder(args)
+        .UseStartup<Startup>()
+        .Build();
 }
-
-app.MapGrpcService<GreeterService>();
-app.MapGet("/", () => "Communication with gRPC endpoints must be made through a gRPC client. To learn how to create a client, visit: https://go.microsoft.com/fwlink/?linkid=2086909");
-
-app.Run();
