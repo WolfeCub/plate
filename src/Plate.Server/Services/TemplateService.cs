@@ -12,15 +12,15 @@ namespace Plate.Server.Services;
 public class TemplateService : Template.TemplateBase
 {
     private readonly ILogger<TemplateService> _logger;
-    private readonly ConfigFile _config;
+    private readonly ConfigFileFactory _configFactory;
 
     public TemplateService(
         ILogger<TemplateService> logger,
-        ConfigFile config
+        ConfigFileFactory configFactory
     )
     {
         _logger = logger;
-        _config = config;
+        _configFactory = configFactory;
     }
 
     public override async Task Sync(SyncRequest request, IServerStreamWriter<SyncReply> responseStream, ServerCallContext context)
@@ -38,17 +38,19 @@ public class TemplateService : Template.TemplateBase
 
     private async Task DoWork(IServerStreamWriter<SyncReply> responseStream)
     {
+        var configFile = await _configFactory.ReadConfigFile();
+
         var matcher = new Matcher();
         matcher.AddInclude("**/*");
 
-        var vaultClient = InitVaultClient();
-        var vars = await GetVars(vaultClient);
+        var vaultClient = InitVaultClient(configFile);
+        var vars = await GetVars(vaultClient, configFile);
 
-        var dirWrapper = new DirectoryInfoWrapper(new DirectoryInfo(_config.InputDirectory));
+        var dirWrapper = new DirectoryInfoWrapper(new DirectoryInfo(configFile.InputDirectory));
         var renderedFiles = matcher
             .Execute(dirWrapper).Files
             .Select(f => (Path: f.Path,
-                          Content: Scriban.Template.Parse(File.ReadAllText(Path.Join(_config.InputDirectory, f.Path)))
+                          Content: Scriban.Template.Parse(File.ReadAllText(Path.Join(configFile.InputDirectory, f.Path)))
                                                     .Render(vars)))
             .ToList();
 
@@ -56,7 +58,7 @@ public class TemplateService : Template.TemplateBase
         {
             var (path, content) = f;
 
-            var outputPath = Path.Join(_config.OutputDirectory, path);
+            var outputPath = Path.Join(configFile.OutputDirectory, path);
             var parent = Directory.GetParent(outputPath);
 
             if (!(parent?.Exists ?? false))
@@ -68,16 +70,16 @@ public class TemplateService : Template.TemplateBase
         }));
     }
 
-    public VaultClient InitVaultClient()
+    public VaultClient InitVaultClient(ConfigFile configFile)
     {
-        var authMethod = new TokenAuthMethodInfo(_config.Vault.Token);
-        var vaultClientSettings = new VaultClientSettings(_config.Vault.Url, authMethod)
+        var authMethod = new TokenAuthMethodInfo(configFile.Vault.Token);
+        var vaultClientSettings = new VaultClientSettings(configFile.Vault.Url, authMethod)
         {
             MyHttpClientProviderFunc = (messageHandler) =>
             {
                 var handler = new HttpClientHandler();
 
-                if (_config.Vault.TlsSkipVerify)
+                if (configFile.Vault.TlsSkipVerify)
                     handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
 
                 return new HttpClient(handler);
@@ -87,11 +89,11 @@ public class TemplateService : Template.TemplateBase
 
     }
 
-    public async Task<object> GetVars(IVaultClient vaultClient)
+    public async Task<object> GetVars(IVaultClient vaultClient, ConfigFile configFile)
     {
         var rootSecretsResponse = await vaultClient.V1.Secrets.KeyValue.V2.ReadSecretPathsAsync(
-            path: _config.Vault.SecretPath ?? "",
-            mountPoint: _config.Vault.MountPath
+            path: configFile.Vault.SecretPath ?? "",
+            mountPoint: configFile.Vault.MountPath
         );
         var rootSecrets = rootSecretsResponse.Data.Keys;
 
@@ -99,7 +101,7 @@ public class TemplateService : Template.TemplateBase
             rootSecrets.Select(
                 async (path) => KeyValuePair.Create(
                     path,
-                    await vaultClient.V1.Secrets.KeyValue.V2.ReadSecretAsync(path: path, mountPoint: _config.Vault.MountPath)
+                    await vaultClient.V1.Secrets.KeyValue.V2.ReadSecretAsync(path: path, mountPoint: configFile.Vault.MountPath)
             )));
 
         var foo = secretResponses.ToDictionary(

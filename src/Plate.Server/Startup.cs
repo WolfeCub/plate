@@ -1,7 +1,5 @@
 using Plate.Common;
 using Plate.Server.Services;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 
 namespace Plate.Server;
 
@@ -13,13 +11,7 @@ public class Startup
     {
         services.AddGrpc();
 
-        var deserializer = new DeserializerBuilder()
-            .WithNamingConvention(UnderscoredNamingConvention.Instance)
-            .Build();
-
-        var config = deserializer.Deserialize<ConfigFile>(File.ReadAllText(Environment.GetEnvironmentVariable("PLATE_CONFIG_PATH") ?? "/etc/plate.yml"));
-
-        services.AddSingleton<ConfigFile>(config);
+        services.AddSingleton<ConfigFileFactory>();
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
