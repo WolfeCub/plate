@@ -1,7 +1,13 @@
 ﻿using Grpc.Net.Client;
 using Plate.Protos;
+using Grpc.Core;
 
-using var channel = GrpcChannel.ForAddress("http://localhost:5000");
+var httpClient = new HttpClient(new HttpClientHandler()
+{
+    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+});
+
+var channel = GrpcChannel.ForAddress("https://localhost:5001", new GrpcChannelOptions { HttpClient = httpClient });
 
 var client =  new Template.TemplateClient(channel);
 
