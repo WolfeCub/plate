@@ -5,6 +5,7 @@ using Plate.Common;
 using Plate.Protos;
 using VaultSharp;
 using VaultSharp.V1.AuthMethods.Token;
+using static Plate.Protos.SyncReply.Types;
 
 namespace Plate.Server.Services;
 
@@ -22,7 +23,20 @@ public class TemplateService : Template.TemplateBase
         _config = config;
     }
 
-    public override async Task<SyncReply> Sync(SyncRequest request, ServerCallContext context)
+    public override async Task Sync(SyncRequest request, IServerStreamWriter<SyncReply> responseStream, ServerCallContext context)
+    {
+        try
+        {
+            await DoWork(responseStream);
+        }
+        catch (Exception e)
+        {
+            await responseStream.WriteAsync(new SyncReply { Status = EnumStatus.Failure });
+            throw;
+        }
+    }
+
+    private async Task DoWork(IServerStreamWriter<SyncReply> responseStream)
     {
         var matcher = new Matcher();
         matcher.AddInclude("**/*");
@@ -38,21 +52,21 @@ public class TemplateService : Template.TemplateBase
                                                     .Render(vars)))
             .ToList();
 
-        await Task.WhenAll(renderedFiles.Select(async (f) => {
+        await Task.WhenAll(renderedFiles.Select(async (f) =>
+        {
             var (path, content) = f;
 
             var outputPath = Path.Join(_config.OutputDirectory, path);
             var parent = Directory.GetParent(outputPath);
 
-            if (! (parent?.Exists ?? false))
+            if (!(parent?.Exists ?? false))
                 Directory.CreateDirectory(parent!.FullName);
 
             await File.WriteAllTextAsync(outputPath, content);
+
+            await responseStream.WriteAsync(new SyncReply { TemplatePath = outputPath });
         }));
-
-        return new SyncReply();
     }
-
 
     public VaultClient InitVaultClient()
     {

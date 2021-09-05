@@ -5,11 +5,17 @@ option csharp_namespace = "Plate.Protos";
 package template;
 
 service Template {
-  rpc Sync (SyncRequest) returns (SyncReply);
+  rpc Sync (SyncRequest) returns (stream SyncReply);
 }
 
 message SyncRequest {
 }
 
 message SyncReply {
+  enum EnumStatus {
+    SUCCESS = 0;
+    FAILURE = 1;
+  }
+  EnumStatus Status = 1;
+  string templatePath = 2;
 }
